@@ -1,1 +1,3 @@
-# minesweeper
+# Minesweeper
+
+Built with Typescript.
