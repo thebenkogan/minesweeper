@@ -1,4 +1,6 @@
 "use strict";
-const ben = "ben" + "10";
-let obj = { x: "3", y: "3" };
-console.log("hello90");
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+canvas.width = 600;
+canvas.height = 600;
+ctx.fillText("hello world", 200, 200);

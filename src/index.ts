@@ -1,5 +1,7 @@
-const ben = "ben" + "10";
+let canvas = document.getElementById("canvas") as HTMLCanvasElement;
+let ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
-let obj = { x: "3", y: "3" };
+canvas.width = 600;
+canvas.height = 600;
 
-console.log("hello90");
+ctx.fillText("hello world", 200, 200);
