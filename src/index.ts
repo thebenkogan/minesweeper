@@ -6,16 +6,14 @@ canvas.width = windowLength;
 canvas.height = windowLength;
 
 const step = 40;
-const rows = windowLength / step;
-const cols = windowLength / step;
+const rows = Math.floor(windowLength / step);
+const cols = Math.floor(windowLength / step);
 
-// Mouse Down Listener
-canvas.addEventListener("mousedown", (e: MouseEvent) => {
-  const rect = canvas.getBoundingClientRect(); // Measure relative to canvas bounds
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  console.log("x: " + x + " y: " + y);
-});
+let bombCount: number = 50;
+
+function getRandomPos(): number[] {
+  return [Math.floor(Math.random() * cols), Math.floor(Math.random() * rows)];
+}
 
 /* 
 Plan:
@@ -53,13 +51,101 @@ flag = some flag thing
 
 */
 
-// Draw Grid and Register Tiles
-const tiles = new Map<string, number>();
-for (let i = 0; i < rows; i++) {
-  for (let j = 0; j < cols; j++) {
-    ctx.strokeRect(i * step, j * step, step, step);
-    //const tile = new Tile();
+interface Tile {
+  revealed: boolean;
+  bomb: boolean;
+  flagged: boolean;
+  num: number; // disregarded if bomb
+}
+
+function drawGrid() {
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      ctx.strokeRect(i * step, j * step, step, step);
+    }
+  }
+  ctx.lineWidth = 5;
+  ctx.strokeRect(0, 0, windowLength, windowLength);
+}
+
+function randomSetup(bombs: number): Map<number[], Tile> {
+  const setup = new Map<number[], Tile>(); // top left coordinate to tile
+  // Register tiles
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      setup.set([i, j], {
+        revealed: false,
+        bomb: false,
+        flagged: false,
+        num: 0,
+      });
+    }
+  }
+  // Determine bombs and numbers
+  for (let i = 0; i < bombs; i++) {
+    let minePos = getRandomPos();
+    while ((setup.get(minePos) as Tile).bomb) {
+      minePos = getRandomPos();
+    }
+    const tile = setup.get(minePos) as Tile;
+    for (let x = -1; x <= 1; x++) {
+      for (let y = -1; y <= 1; y++) {
+        if (x == 0 && y == 0) {
+          tile.bomb = true;
+        } else {
+          const offsetPos = [minePos[0] + x, minePos[1] + y];
+          if (setup.has(offsetPos)) {
+            (setup.get(offsetPos) as Tile).num++;
+          }
+        }
+      }
+    }
+  }
+
+  // Reveal zero tiles
+  setup.forEach((tile, _) => {
+    if (!tile.bomb && tile.num == 0) {
+      tile.revealed = true;
+    }
+  });
+
+  return setup;
+}
+
+let tiles: Map<number[], Tile> = randomSetup(bombCount);
+
+// Mouse Down Listener
+canvas.addEventListener("mousedown", (e: MouseEvent) => {
+  if (e.button != 0 && e.button != 2) {
+    return;
+  }
+  const rect = canvas.getBoundingClientRect(); // Measure relative to canvas bounds
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const pos = [x / step, y / step].map(Math.floor);
+  if (!tiles.has(pos)) {
+    return;
+  }
+  const tile = tiles.get(pos) as Tile;
+  const alt = e.button == 2;
+  handleClick(tile, alt);
+});
+
+function handleClick(tile: Tile, alt: boolean): void {
+  if (tile.revealed) {
+    return;
+  }
+
+  let gameOver = false;
+  if (tile.flagged) {
+    tile.flagged = !tile.flagged;
+  } else if (!alt) {
+    if (tile.bomb) {
+      gameOver = true;
+    } else {
+      tile.revealed = true;
+    }
+  } else {
+    tile.flagged = true;
   }
 }
-ctx.lineWidth = 5;
-ctx.strokeRect(0, 0, windowLength, windowLength);
