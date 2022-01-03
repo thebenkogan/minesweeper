@@ -7,16 +7,10 @@ canvas.height = windowLength;
 const step = 40;
 const rows = Math.floor(windowLength / step);
 const cols = Math.floor(windowLength / step);
+let bombCount = 50;
 function getRandomPos() {
     return [Math.floor(Math.random() * cols), Math.floor(Math.random() * rows)];
 }
-// Mouse Down Listener
-canvas.addEventListener("mousedown", (e) => {
-    const rect = canvas.getBoundingClientRect(); // Measure relative to canvas bounds
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    //const tile: Tile = tiles.get([x / step, y / step].map(Math.floor));
-});
 function drawGrid() {
     for (let i = 0; i < rows; i++) {
         for (let j = 0; j < cols; j++) {
@@ -27,10 +21,11 @@ function drawGrid() {
     ctx.strokeRect(0, 0, windowLength, windowLength);
 }
 function randomSetup(bombs) {
-    const tiles = new Map(); // top left coordinate to tile
+    const setup = new Map(); // top left coordinate to tile
+    // Register tiles
     for (let i = 0; i < rows; i++) {
         for (let j = 0; j < cols; j++) {
-            tiles.set([i, j], {
+            setup.set([i, j], {
                 revealed: false,
                 bomb: false,
                 flagged: false,
@@ -38,12 +33,13 @@ function randomSetup(bombs) {
             });
         }
     }
+    // Determine bombs and numbers
     for (let i = 0; i < bombs; i++) {
         let minePos = getRandomPos();
-        while (tiles.get(minePos).bomb) {
+        while (setup.get(minePos).bomb) {
             minePos = getRandomPos();
         }
-        const tile = tiles.get(minePos);
+        const tile = setup.get(minePos);
         for (let x = -1; x <= 1; x++) {
             for (let y = -1; y <= 1; y++) {
                 if (x == 0 && y == 0) {
@@ -51,12 +47,55 @@ function randomSetup(bombs) {
                 }
                 else {
                     const offsetPos = [minePos[0] + x, minePos[1] + y];
-                    if (tiles.has(offsetPos)) {
-                        tiles.get(offsetPos).num++;
+                    if (setup.has(offsetPos)) {
+                        setup.get(offsetPos).num++;
                     }
                 }
             }
         }
     }
-    return tiles;
+    // Reveal zero tiles
+    setup.forEach((tile, _) => {
+        if (!tile.bomb && tile.num == 0) {
+            tile.revealed = true;
+        }
+    });
+    return setup;
+}
+let tiles = randomSetup(bombCount);
+// Mouse Down Listener
+canvas.addEventListener("mousedown", (e) => {
+    if (e.button != 0 && e.button != 2) {
+        return;
+    }
+    const rect = canvas.getBoundingClientRect(); // Measure relative to canvas bounds
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const pos = [x / step, y / step].map(Math.floor);
+    if (!tiles.has(pos)) {
+        return;
+    }
+    const tile = tiles.get(pos);
+    const alt = e.button == 2;
+    handleClick(tile, alt);
+});
+function handleClick(tile, alt) {
+    if (tile.revealed) {
+        return;
+    }
+    let gameOver = false;
+    if (tile.flagged) {
+        tile.flagged = !tile.flagged;
+    }
+    else if (!alt) {
+        if (tile.bomb) {
+            gameOver = true;
+        }
+        else {
+            tile.revealed = true;
+        }
+    }
+    else {
+        tile.flagged = true;
+    }
 }
