@@ -2,6 +2,9 @@ const div = document.getElementById("minesweeper") as HTMLDivElement;
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
+const bombImage = document.getElementById("bomb") as HTMLImageElement;
+const flagImage = document.getElementById("flag") as HTMLImageElement;
+
 const width = div.clientWidth;
 const height = div.clientHeight;
 
@@ -211,8 +214,10 @@ function drawGame(gameOver: boolean) {
     if (tile.revealed || tile.flagged) {
       if (tile.flagged) {
         ctx.fillText("F", step * x, step + step * y);
+        //ctx.drawImage(flagImage, step * x, step + step * y);
       } else if (tile.bomb) {
-        ctx.fillText("B", step * x, step + step * y);
+        //ctx.fillText("B", step * x, step + step * y);
+        ctx.drawImage(flagImage, step * x, step * y, step, step);
       } else if (tile.num) {
         const num = tile.num == 0 ? "" : `${tile.num}`;
         ctx.fillText(num, step * x, step + step * y);
