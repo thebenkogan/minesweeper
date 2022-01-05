@@ -8,12 +8,20 @@ const width = div.clientWidth;
 const height = div.clientHeight;
 canvas.width = width;
 canvas.height = height;
-ctx.font = "20px sans-serif";
 const cols = 30;
 const step = width / cols;
 const rows = Math.floor(height / step);
-//const rows = Math.floor(windowLength / step);
-//const cols = Math.floor(windowLength / step);
+ctx.font = `${step - 5}px sans-serif`;
+const numColorMap = new Map([
+    [1, "#334FFF"],
+    [2, "#129E16"],
+    [3, "#CA2D17"],
+    [4, "#B217CA"],
+    [5, "#DC9117"],
+    [6, "#17DCD9"],
+    [7, "#020707"],
+    [8, "#919191"],
+]);
 function stringToPos(pos) {
     return pos.split("_").map((s) => parseInt(s));
 }
@@ -73,9 +81,9 @@ function randomSetup(bombs) {
 let firstClick = true;
 let bombCount = Math.floor((cols * rows) / 5);
 let tiles = randomSetup(bombCount);
-tiles.forEach((tile, _) => {
-    tile.revealed = true;
-});
+//tiles.forEach((tile: Tile, _) => {
+//  tile.revealed = true;
+//});
 drawGame(false);
 // Reveals the tile at 'pos' and all of its neighbors. Repeats for all
 // neighbors that are also empty. Optionally pass in 'revealed' map for
@@ -152,16 +160,15 @@ function drawGame(gameOver) {
         const [x, y] = stringToPos(pos);
         if (tile.revealed || tile.flagged) {
             if (tile.flagged) {
-                ctx.fillText("F", step * x, step + step * y);
-                //ctx.drawImage(flagImage, step * x, step + step * y);
+                ctx.drawImage(flagImage, step * x + 5, step * y + 5, step - 10, step - 10);
             }
             else if (tile.bomb) {
-                //ctx.fillText("B", step * x, step + step * y);
-                ctx.drawImage(flagImage, step * x, step * y, step, step);
+                ctx.drawImage(bombImage, step * x + 5, step * y + 5, step - 10, step - 10);
             }
             else if (tile.num) {
                 const num = tile.num == 0 ? "" : `${tile.num}`;
-                ctx.fillText(num, step * x, step + step * y);
+                ctx.fillStyle = numColorMap.get(tile.num) || "#FFFFFF";
+                ctx.fillText(num, step * x + step / 4, step + step * y - step / 5);
             }
         }
     });
