@@ -7,6 +7,7 @@ const flagImage = document.getElementById("flag") as HTMLImageElement;
 const primaryColor = "#DCDCDC"; // revealed tiles
 const secondaryColor = "#FFFFFF"; // unrevealed tiles and flag background
 const bombBG = "#F50114"; // bomb background
+const winColor = "#0EF11B";
 
 const width = div.clientWidth;
 const height = div.clientHeight;
@@ -14,7 +15,7 @@ const height = div.clientHeight;
 canvas.width = width;
 canvas.height = height;
 
-const cols = 30;
+const cols = 25;
 const step = width / cols;
 const rows = Math.floor(height / step);
 
@@ -226,24 +227,18 @@ function drawGame(gameOver: boolean) {
     replay = true;
   }
 
+  const gameWin = replay && !gameOver;
   tiles.forEach((tile: Tile, pos: string) => {
     const [x, y] = stringToPos(pos);
     if (tile.revealed || tile.flagged) {
-      if (tile.flagged) {
-        ctx.fillStyle = secondaryColor;
+      if (tile.flagged || tile.bomb) {
+        ctx.fillStyle = tile.flagged ? secondaryColor : bombBG;
+        if (gameWin && tile.flagged) {
+          ctx.fillStyle = winColor;
+        }
         ctx.fillRect(step * x, step * y, step, step);
         ctx.drawImage(
-          flagImage,
-          step * x + 5,
-          step * y + 5,
-          step - 10,
-          step - 10
-        );
-      } else if (tile.bomb) {
-        ctx.fillStyle = bombBG;
-        ctx.fillRect(step * x, step * y, step, step);
-        ctx.drawImage(
-          bombImage,
+          tile.flagged ? flagImage : bombImage,
           step * x + 5,
           step * y + 5,
           step - 10,
