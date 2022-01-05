@@ -4,6 +4,9 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const bombImage = document.getElementById("bomb");
 const flagImage = document.getElementById("flag");
+const primaryColor = "#DCDCDC"; // revealed tiles
+const secondaryColor = "#FFFFFF"; // unrevealed tiles and flag background
+const bombBG = "#F50114"; // bomb background
 const width = div.clientWidth;
 const height = div.clientHeight;
 canvas.width = width;
@@ -11,6 +14,7 @@ canvas.height = height;
 const cols = 30;
 const step = width / cols;
 const rows = Math.floor(height / step);
+const bombCount = Math.floor((cols * rows) / 6);
 ctx.font = `${step - 5}px sans-serif`;
 const numColorMap = new Map([
     [1, "#334FFF"],
@@ -32,7 +36,7 @@ function getRandomPos() {
     return [Math.floor(Math.random() * cols), Math.floor(Math.random() * rows)];
 }
 function drawGrid() {
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 0.5;
     for (let i = 0; i < rows; i++) {
         for (let j = 0; j < cols; j++) {
             ctx.strokeRect(j * step, i * step, step, step);
@@ -41,7 +45,7 @@ function drawGrid() {
     ctx.lineWidth = 5;
     ctx.strokeRect(0, 0, width, height);
 }
-function randomSetup(bombs) {
+function randomSetup(bombs, [firstX, firstY]) {
     const setup = new Map(); // top left coordinate to tile
     // Register tiles
     for (let i = 0; i < rows; i++) {
@@ -54,11 +58,11 @@ function randomSetup(bombs) {
             });
         }
     }
-    console.log(setup);
     // Determine bombs and numbers
     for (let i = 0; i < bombs; i++) {
         let minePos = getRandomPos();
-        while (setup.get(posToString(minePos)).bomb) {
+        while (setup.get(posToString(minePos)).bomb ||
+            (Math.abs(minePos[0] - firstX) <= 1 && Math.abs(minePos[1] - firstY) <= 1)) {
             minePos = getRandomPos();
         }
         const tile = setup.get(posToString(minePos));
@@ -76,15 +80,14 @@ function randomSetup(bombs) {
             }
         }
     }
-    return setup;
+    tiles = setup;
+    revealFlood([firstX, firstY]);
 }
+// Initial Setup
+let replay = false;
 let firstClick = true;
-let bombCount = Math.floor((cols * rows) / 5);
-let tiles = randomSetup(bombCount);
-//tiles.forEach((tile: Tile, _) => {
-//  tile.revealed = true;
-//});
-drawGame(false);
+let tiles;
+drawGrid();
 // Reveals the tile at 'pos' and all of its neighbors. Repeats for all
 // neighbors that are also empty. Optionally pass in 'revealed' map for
 // all empty tiles that have already been revealed in this flood.
@@ -99,6 +102,7 @@ function revealFlood([tileX, tileY], revealed = new Map()) {
                     revealFlood(pos, (revealed = revealed));
                 }
                 else {
+                    tile.flagged = false;
                     tile.revealed = true;
                 }
             }
@@ -110,10 +114,22 @@ canvas.addEventListener("mousedown", (e) => {
     if (e.button != 0 && e.button != 2) {
         return;
     }
+    if (replay) {
+        replay = false;
+        firstClick = true;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawGrid();
+        return;
+    }
     const rect = canvas.getBoundingClientRect(); // Measure relative to canvas bounds
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const pos = [x / step, y / step].map(Math.floor);
+    if (firstClick) {
+        randomSetup(bombCount, pos);
+        drawGame(false);
+        firstClick = false;
+    }
     if (!tiles.has(posToString(pos))) {
         return;
     }
@@ -122,6 +138,10 @@ canvas.addEventListener("mousedown", (e) => {
     handleClick(tile, pos, alt);
 });
 function handleClick(tile, pos, alt) {
+    //if (firstClick && !alt) {
+    //  handleFirstClick(pos);
+    //  return;
+    //}
     if (tile.revealed) {
         return;
     }
@@ -148,28 +168,59 @@ function handleClick(tile, pos, alt) {
     }
     drawGame(gameOver);
 }
-function handleFirstClick() { }
+function revealAll() {
+    tiles.forEach((tile, _) => {
+        tile.revealed = true;
+    });
+}
+function checkWin() {
+    let revealed = 0;
+    tiles.forEach((tile, _) => {
+        if (tile.revealed) {
+            revealed++;
+        }
+    });
+    if (cols * rows - revealed == bombCount) {
+        return true;
+    }
+}
 function drawGame(gameOver) {
-    // Clear previous board and redraw grid
+    // Clear previous board
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawGrid();
     if (gameOver) {
-        console.log("game over");
+        revealAll();
+        replay = true;
+    }
+    if (checkWin()) {
+        replay = true;
     }
     tiles.forEach((tile, pos) => {
         const [x, y] = stringToPos(pos);
         if (tile.revealed || tile.flagged) {
             if (tile.flagged) {
+                ctx.fillStyle = secondaryColor;
+                ctx.fillRect(step * x, step * y, step, step);
                 ctx.drawImage(flagImage, step * x + 5, step * y + 5, step - 10, step - 10);
             }
             else if (tile.bomb) {
+                ctx.fillStyle = bombBG;
+                ctx.fillRect(step * x, step * y, step, step);
                 ctx.drawImage(bombImage, step * x + 5, step * y + 5, step - 10, step - 10);
             }
-            else if (tile.num) {
-                const num = tile.num == 0 ? "" : `${tile.num}`;
-                ctx.fillStyle = numColorMap.get(tile.num) || "#FFFFFF";
-                ctx.fillText(num, step * x + step / 4, step + step * y - step / 5);
+            else {
+                ctx.fillStyle = primaryColor;
+                ctx.fillRect(step * x, step * y, step, step);
+                if (tile.num > 0) {
+                    const num = `${tile.num}`;
+                    ctx.fillStyle = numColorMap.get(tile.num) || primaryColor;
+                    ctx.fillText(num, step * x + step / 4, step + step * y - step / 5);
+                }
             }
         }
+        else {
+            ctx.fillStyle = secondaryColor;
+            ctx.fillRect(step * x, step * y, step, step);
+        }
     });
+    drawGrid();
 }

@@ -4,6 +4,9 @@ const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
 const bombImage = document.getElementById("bomb") as HTMLImageElement;
 const flagImage = document.getElementById("flag") as HTMLImageElement;
+const primaryColor = "#DCDCDC"; // revealed tiles
+const secondaryColor = "#FFFFFF"; // unrevealed tiles and flag background
+const bombBG = "#F50114"; // bomb background
 
 const width = div.clientWidth;
 const height = div.clientHeight;
@@ -14,6 +17,8 @@ canvas.height = height;
 const cols = 30;
 const step = width / cols;
 const rows = Math.floor(height / step);
+
+const bombCount: number = Math.floor((cols * rows) / 6);
 
 ctx.font = `${step - 5}px sans-serif`;
 const numColorMap = new Map<number, string>([
@@ -39,42 +44,6 @@ function getRandomPos(): number[] {
   return [Math.floor(Math.random() * cols), Math.floor(Math.random() * rows)];
 }
 
-/* 
-Plan:
-1.) Generate seed (map of pos to number), where negative number is a bomb,
-positive number is the number of neighboring bombs. Link:
-https://stackoverflow.com/a/3578497
-
-2.) Initialize the tiles with these properties, all hidden and with given number.
-All unflagged too. Store tiles in map of pos to tile. Accessed on each click.
-
-3.) On click, get tile from map:
-
-Right click:
-If hidden, set flagged 
-If revealed, do nothing
-If flagged, unflag
-
-Left click:
-If hidden bomb, game over (reveal everything?)
-If hidden number, reveal
-If revealed, do nothing
-If flagged, unflag
-
-First click?:
-Expose random area area click, changing those tiles to zero number
-
-All numbers revealed?:
-Game over, do something cool
-
-Re-render board:
-hidden = blank square
-revealed number = colored number? (don't show zero)
-revealed bomb = some bomb thing
-flag = some flag thing 
-
-*/
-
 interface Tile {
   revealed: boolean;
   bomb: boolean;
@@ -83,7 +52,7 @@ interface Tile {
 }
 
 function drawGrid() {
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 0.5;
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
       ctx.strokeRect(j * step, i * step, step, step);
@@ -93,7 +62,7 @@ function drawGrid() {
   ctx.strokeRect(0, 0, width, height);
 }
 
-function randomSetup(bombs: number): Map<string, Tile> {
+function randomSetup(bombs: number, [firstX, firstY]: number[]): void {
   const setup = new Map<string, Tile>(); // top left coordinate to tile
   // Register tiles
   for (let i = 0; i < rows; i++) {
@@ -106,11 +75,13 @@ function randomSetup(bombs: number): Map<string, Tile> {
       });
     }
   }
-  console.log(setup);
   // Determine bombs and numbers
   for (let i = 0; i < bombs; i++) {
     let minePos = getRandomPos();
-    while ((setup.get(posToString(minePos)) as Tile).bomb) {
+    while (
+      (setup.get(posToString(minePos)) as Tile).bomb ||
+      (Math.abs(minePos[0] - firstX) <= 1 && Math.abs(minePos[1] - firstY) <= 1)
+    ) {
       minePos = getRandomPos();
     }
     const tile = setup.get(posToString(minePos)) as Tile;
@@ -128,16 +99,16 @@ function randomSetup(bombs: number): Map<string, Tile> {
     }
   }
 
-  return setup;
+  tiles = setup;
+
+  revealFlood([firstX, firstY]);
 }
 
+// Initial Setup
+let replay = false;
 let firstClick: boolean = true;
-let bombCount: number = Math.floor((cols * rows) / 5);
-let tiles: Map<string, Tile> = randomSetup(bombCount);
-//tiles.forEach((tile: Tile, _) => {
-//  tile.revealed = true;
-//});
-drawGame(false);
+let tiles: Map<string, Tile>;
+drawGrid();
 
 // Reveals the tile at 'pos' and all of its neighbors. Repeats for all
 // neighbors that are also empty. Optionally pass in 'revealed' map for
@@ -155,6 +126,7 @@ function revealFlood(
         if (tile.num == 0 && !revealed.has(posToString(pos))) {
           revealFlood(pos, (revealed = revealed));
         } else {
+          tile.flagged = false;
           tile.revealed = true;
         }
       }
@@ -167,10 +139,22 @@ canvas.addEventListener("mousedown", (e: MouseEvent) => {
   if (e.button != 0 && e.button != 2) {
     return;
   }
+  if (replay) {
+    replay = false;
+    firstClick = true;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawGrid();
+    return;
+  }
   const rect = canvas.getBoundingClientRect(); // Measure relative to canvas bounds
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   const pos = [x / step, y / step].map(Math.floor);
+  if (firstClick) {
+    randomSetup(bombCount, pos);
+    drawGame(false);
+    firstClick = false;
+  }
   if (!tiles.has(posToString(pos))) {
     return;
   }
@@ -180,6 +164,11 @@ canvas.addEventListener("mousedown", (e: MouseEvent) => {
 });
 
 function handleClick(tile: Tile, pos: number[], alt: boolean): void {
+  //if (firstClick && !alt) {
+  //  handleFirstClick(pos);
+  //  return;
+  //}
+
   if (tile.revealed) {
     return;
   }
@@ -206,21 +195,43 @@ function handleClick(tile: Tile, pos: number[], alt: boolean): void {
   drawGame(gameOver);
 }
 
-function handleFirstClick() {}
+function revealAll() {
+  tiles.forEach((tile: Tile, _) => {
+    tile.revealed = true;
+  });
+}
+
+function checkWin() {
+  let revealed = 0;
+  tiles.forEach((tile: Tile, _) => {
+    if (tile.revealed) {
+      revealed++;
+    }
+  });
+  if (cols * rows - revealed == bombCount) {
+    return true;
+  }
+}
 
 function drawGame(gameOver: boolean) {
-  // Clear previous board and redraw grid
+  // Clear previous board
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawGrid();
 
   if (gameOver) {
-    console.log("game over");
+    revealAll();
+    replay = true;
+  }
+
+  if (checkWin()) {
+    replay = true;
   }
 
   tiles.forEach((tile: Tile, pos: string) => {
     const [x, y] = stringToPos(pos);
     if (tile.revealed || tile.flagged) {
       if (tile.flagged) {
+        ctx.fillStyle = secondaryColor;
+        ctx.fillRect(step * x, step * y, step, step);
         ctx.drawImage(
           flagImage,
           step * x + 5,
@@ -229,6 +240,8 @@ function drawGame(gameOver: boolean) {
           step - 10
         );
       } else if (tile.bomb) {
+        ctx.fillStyle = bombBG;
+        ctx.fillRect(step * x, step * y, step, step);
         ctx.drawImage(
           bombImage,
           step * x + 5,
@@ -236,11 +249,20 @@ function drawGame(gameOver: boolean) {
           step - 10,
           step - 10
         );
-      } else if (tile.num) {
-        const num = tile.num == 0 ? "" : `${tile.num}`;
-        ctx.fillStyle = numColorMap.get(tile.num) || "#FFFFFF";
-        ctx.fillText(num, step * x + step / 4, step + step * y - step / 5);
+      } else {
+        ctx.fillStyle = primaryColor;
+        ctx.fillRect(step * x, step * y, step, step);
+        if (tile.num > 0) {
+          const num = `${tile.num}`;
+          ctx.fillStyle = numColorMap.get(tile.num) || primaryColor;
+          ctx.fillText(num, step * x + step / 4, step + step * y - step / 5);
+        }
       }
+    } else {
+      ctx.fillStyle = secondaryColor;
+      ctx.fillRect(step * x, step * y, step, step);
     }
   });
+
+  drawGrid();
 }
