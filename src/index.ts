@@ -4,8 +4,8 @@ const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
 const bombImage = document.getElementById("bomb") as HTMLImageElement;
 const flagImage = document.getElementById("flag") as HTMLImageElement;
-const primaryColor = "#DCDCDC"; // revealed tiles
-const secondaryColor = "#FFFFFF"; // unrevealed tiles and flag background
+const primaryColor = "#A9A9A9"; // revealed tiles
+const secondaryColor = "#C0C0C0"; // unrevealed tiles and flag background
 const bombBG = "#F50114"; // bomb background
 const winColor = "#0EF11B";
 
@@ -15,9 +15,13 @@ const height = div.clientHeight;
 canvas.width = width;
 canvas.height = height;
 
-const cols = 25;
+const cols = 10;
 const step = width / cols;
 const rows = Math.floor(height / step);
+const gridWidth = cols * step;
+const gridHeight = rows * step;
+console.log(gridHeight);
+console.log(height);
 
 const bombCount: number = Math.floor((cols * rows) / 6);
 
@@ -53,14 +57,20 @@ interface Tile {
 }
 
 function drawGrid() {
+  ctx.strokeStyle = "#000000";
   ctx.lineWidth = 0.5;
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
       ctx.strokeRect(j * step, i * step, step, step);
     }
   }
-  ctx.lineWidth = 5;
-  ctx.strokeRect(0, 0, width, height);
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, gridHeight, width, height - gridHeight);
+}
+
+function drawTempBG() {
+  ctx.fillStyle = secondaryColor;
+  ctx.fillRect(0, 0, gridWidth, gridHeight);
 }
 
 function randomSetup(bombs: number, [firstX, firstY]: number[]): void {
@@ -109,6 +119,7 @@ function randomSetup(bombs: number, [firstX, firstY]: number[]): void {
 let replay = false;
 let firstClick: boolean = true;
 let tiles: Map<string, Tile>;
+drawTempBG();
 drawGrid();
 
 // Reveals the tile at 'pos' and all of its neighbors. Repeats for all
@@ -144,6 +155,7 @@ canvas.addEventListener("mousedown", (e: MouseEvent) => {
     replay = false;
     firstClick = true;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawTempBG();
     drawGrid();
     return;
   }
@@ -165,11 +177,6 @@ canvas.addEventListener("mousedown", (e: MouseEvent) => {
 });
 
 function handleClick(tile: Tile, pos: number[], alt: boolean): void {
-  //if (firstClick && !alt) {
-  //  handleFirstClick(pos);
-  //  return;
-  //}
-
   if (tile.revealed) {
     return;
   }
