@@ -12,13 +12,27 @@ const width = div.clientWidth;
 const height = div.clientHeight;
 canvas.width = width;
 canvas.height = height;
-const cols = 10;
-const step = width / cols;
-const rows = Math.floor(height / step);
-const gridWidth = cols * step;
-const gridHeight = rows * step;
-console.log(gridHeight);
-console.log(height);
+// get grid and border dimensions
+let cols = 25; // temp column count
+let rows = 25; // temp row count
+const Xstep = width / cols;
+const Ystep = height / rows;
+const step = (Xstep + Ystep) / 2;
+const hb = (width % step) / 2; // horizontal border width
+const vb = (height % step) / 2; // vertical border width
+cols = Math.floor(width / step);
+rows = Math.floor(height / step);
+// draw border and fill blank color
+ctx.fillStyle = "red";
+ctx.fillRect(0, 0, hb, height);
+ctx.fillRect(width - hb, 0, hb, height);
+ctx.fillRect(0, 0, width, vb);
+ctx.fillRect(0, height - vb, width, vb);
+// const cols = 10;
+// const step = width / cols;
+// const rows = Math.floor(height / step);
+// const gridWidth = cols * step;
+// const gridHeight = rows * step;
 const bombCount = Math.floor((cols * rows) / 6);
 ctx.font = `${step - 5}px sans-serif`;
 const numColorMap = new Map([
@@ -42,18 +56,23 @@ function getRandomPos() {
 }
 function drawGrid() {
     ctx.strokeStyle = "#000000";
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 1;
     for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-            ctx.strokeRect(j * step, i * step, step, step);
-        }
+        ctx.beginPath();
+        ctx.moveTo(hb, vb + i * step);
+        ctx.lineTo(width - hb, vb + i * step);
+        ctx.stroke();
     }
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, gridHeight, width, height - gridHeight);
+    for (let i = 0; i < cols; i++) {
+        ctx.beginPath();
+        ctx.moveTo(hb + i * step, vb);
+        ctx.lineTo(hb + i * step, height - vb);
+        ctx.stroke();
+    }
 }
 function drawTempBG() {
     ctx.fillStyle = secondaryColor;
-    ctx.fillRect(0, 0, gridWidth, gridHeight);
+    ctx.fillRect(hb, vb, width - 2 * hb, height - 2 * vb);
 }
 function randomSetup(bombs, [firstX, firstY]) {
     const setup = new Map(); // top left coordinate to tile
@@ -128,7 +147,7 @@ canvas.addEventListener("mousedown", (e) => {
     if (replay) {
         replay = false;
         firstClick = true;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(hb, vb, width - 2 * hb, height - 2 * vb);
         drawTempBG();
         drawGrid();
         return;
@@ -136,7 +155,9 @@ canvas.addEventListener("mousedown", (e) => {
     const rect = canvas.getBoundingClientRect(); // Measure relative to canvas bounds
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const pos = [x / step, y / step].map(Math.floor);
+    let pos = [(x - hb) / step, (y - vb) / step].map(Math.floor);
+    if (x < hb || x > width - hb || y < vb || y > height - vb)
+        return;
     if (firstClick) {
         randomSetup(bombCount, pos);
         drawGame(false);
@@ -194,7 +215,7 @@ function checkWin() {
 }
 function drawGame(gameOver) {
     // Clear previous board
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(hb, vb, width - 2 * hb, height - 2 * vb);
     if (gameOver) {
         revealAll();
         replay = true;
@@ -211,22 +232,22 @@ function drawGame(gameOver) {
                 if (gameWin && tile.flagged) {
                     ctx.fillStyle = winColor;
                 }
-                ctx.fillRect(step * x, step * y, step, step);
-                ctx.drawImage(tile.flagged ? flagImage : bombImage, step * x + 5, step * y + 5, step - 10, step - 10);
+                ctx.fillRect(hb + step * x, vb + step * y, step, step);
+                ctx.drawImage(tile.flagged ? flagImage : bombImage, hb + step * x + 5, vb + step * y + 5, step - 10, step - 10);
             }
             else {
                 ctx.fillStyle = primaryColor;
-                ctx.fillRect(step * x, step * y, step, step);
+                ctx.fillRect(hb + step * x, vb + step * y, step, step);
                 if (tile.num > 0) {
                     const num = `${tile.num}`;
                     ctx.fillStyle = numColorMap.get(tile.num) || primaryColor;
-                    ctx.fillText(num, step * x + step / 4, step + step * y - step / 5);
+                    ctx.fillText(num, hb + step * x + step / 4, vb + step + step * y - step / 5);
                 }
             }
         }
         else {
             ctx.fillStyle = secondaryColor;
-            ctx.fillRect(step * x, step * y, step, step);
+            ctx.fillRect(hb + step * x, vb + step * y, step, step);
         }
     });
     drawGrid();
