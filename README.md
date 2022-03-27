@@ -1,3 +1,3 @@
 # Minesweeper
 
-Built with Typescript.
+http://minesweeper.benkogan.io/

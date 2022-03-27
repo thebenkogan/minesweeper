@@ -33,12 +33,6 @@ ctx.fillRect(width - hb, 0, hb, height);
 ctx.fillRect(0, 0, width, vb);
 ctx.fillRect(0, height - vb, width, vb);
 
-// const cols = 10;
-// const step = width / cols;
-// const rows = Math.floor(height / step);
-// const gridWidth = cols * step;
-// const gridHeight = rows * step;
-
 const bombCount: number = Math.floor((cols * rows) / 6);
 
 ctx.font = `${step - 5}px sans-serif`;
